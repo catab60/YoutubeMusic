@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0d0e15">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>TuneStream • Offline Web Music Player</title>
+  
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/static/default-art.png">
+</head>
+<body>
+  <div class="app-layout">
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand" onclick="app.showPlaylistsView()">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18V5l12-2v13"></path>
+              <circle cx="6" cy="18" r="3"></circle>
+              <circle cx="18" cy="16" r="3"></circle>
+            </svg>
+          </div>
+          <span class="brand-name">TuneStream</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div id="download-pill" class="download-pill hidden" onclick="app.showDownloadModal()">
+          <span class="pulse-dot"></span>
+          <span id="download-pill-text">Downloading 1/5...</span>
+        </div>
+
+        <div class="badge-lockscreen" title="Audio stays playing when phone screen is turned off">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <span class="badge-text">Background Play</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="import-card">
+        <div class="import-header">
+          <div class="import-title-group">
+            <div class="icon-circle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
+                <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
+              </svg>
+            </div>
+            <div>
+              <h2>Import from YouTube</h2>
+              <p class="import-subtitle">Paste a playlist link to download all music as local MP3s for background listening</p>
+            </div>
+          </div>
+        </div>
+
+        <form id="import-form" class="import-form" onsubmit="app.handleImport(event)">
+          <div class="input-wrapper">
+            <input 
+              type="text" 
+              id="playlist-url-input" 
+              placeholder="Paste YouTube playlist URL (e.g. https://www.youtube.com/playlist?list=...)" 
+              required
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button type="button" class="btn-paste" onclick="app.pasteClipboard()" title="Paste from clipboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+              </svg>
+              <span>Paste</span>
+            </button>
+          </div>
+          <button type="submit" id="btn-import-submit" class="btn-primary">
+            <span class="btn-content">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>Import &amp; Download</span>
+            </span>
+            <span class="spinner hidden"></span>
+          </button>
+        </form>
+      </section>
+
+      <section id="playlists-view" class="view-section active">
+        <div class="section-header">
+          <h3>Your Playlists</h3>
+          <span id="playlists-count" class="meta-tag">0 Playlists</span>
+        </div>
+
+        <div id="playlists-grid" class="playlists-grid">
+        </div>
+
+        <div id="playlists-empty" class="empty-state hidden">
+          <div class="empty-illustration">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18V5l12-2v13"></path>
+              <circle cx="6" cy="18" r="3"></circle>
+              <circle cx="18" cy="16" r="3"></circle>
+            </svg>
+          </div>
+          <h4>No playlists yet</h4>
+          <p>Import your favorite YouTube playlist above to download and start playing.</p>
+        </div>
+      </section>
+
+      <section id="playlist-detail-view" class="view-section">
+        <div class="detail-top-nav">
+          <button class="btn-back" onclick="app.showPlaylistsView()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            <span>Playlists</span>
+          </button>
+          <div class="detail-actions">
+            <button class="btn-secondary" onclick="app.triggerCurrentPlaylistSync()" id="btn-sync-playlist" title="Check for newly added YouTube songs">
+              <svg id="sync-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              <span>Sync Now</span>
+            </button>
+            <button class="btn-danger-outline" onclick="app.deleteCurrentPlaylist()" title="Delete playlist">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="playlist-hero">
+          <div class="hero-art-wrapper">
+            <img id="detail-artwork" src="/static/default-art.png" alt="Playlist cover" class="hero-art" onerror="this.src='/static/default-art.png'" />
+          </div>
+          <div class="hero-info">
+            <div class="hero-type">PLAYLIST</div>
+            <h1 id="detail-title" class="hero-title">Loading...</h1>
+            <div class="hero-meta">
+              <span id="detail-track-count">0 tracks</span>
+              <span class="meta-dot">•</span>
+              <span id="detail-completed-count">0 downloaded</span>
+              <span class="meta-dot">•</span>
+              <a id="detail-youtube-link" href="#" target="_blank" rel="noopener noreferrer" class="link-youtube">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.83 1.48-1.73 1.73-.47.13-1.33.22-2.65.28-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44-.9-.25-1.48-.83-1.73-1.73-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83.25-.9.83-1.48 1.73-1.73.47-.13 1.33-.22 2.65-.28 1.3-.07 2.49-.1 3.59-.1L12 5c4.19 0 6.8.16 7.83.44.9.25 1.48.83 1.73 1.73z"/>
+                </svg>
+                <span>YouTube Link</span>
+              </a>
+            </div>
+
+            <div id="detail-sync-status" class="sync-status-bar">
+              <div class="sync-spinner"></div>
+              <span id="sync-status-text">Checking for new songs added to YouTube...</span>
+            </div>
+
+            <div class="hero-controls">
+              <button class="btn-play-all" onclick="player.playAllFromCurrentPlaylist()">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>Play All</span>
+              </button>
+              <button class="btn-shuffle-all" onclick="player.shuffleAllFromCurrentPlaylist()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="16 3 21 3 21 8"></polyline>
+                  <line x1="4" y1="20" x2="21" y2="3"></line>
+                  <polyline points="21 16 21 21 16 21"></polyline>
+                  <line x1="15" y1="15" x2="21" y2="21"></line>
+                  <line x1="4" y1="4" x2="9" y2="9"></line>
+                </svg>
+                <span>Shuffle</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tracks-container">
+          <div class="tracks-header">
+            <span class="th-num">#</span>
+            <span class="th-title">TITLE</span>
+            <span class="th-status">STATUS</span>
+            <span class="th-duration">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </span>
+          </div>
+          <div id="tracks-list" class="tracks-list">
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer id="player-bar" class="player-bar">
+      <div class="scrub-container" id="scrub-container" onclick="player.handleScrubClick(event)">
+        <div class="scrub-buffered" id="scrub-buffered"></div>
+        <div class="scrub-progress" id="scrub-progress"></div>
+        <div class="scrub-thumb" id="scrub-thumb"></div>
+      </div>
+
+      <div class="player-bar-inner">
+        <div class="now-playing-info" onclick="player.openFullscreenPlayer()">
+          <img id="now-playing-art" src="/static/default-art.png" alt="Cover Art" class="now-playing-art" onerror="this.src='/static/default-art.png'" />
+          <div class="now-playing-meta">
+            <div id="now-playing-title" class="track-title-marquee">No track selected</div>
+            <div id="now-playing-artist" class="track-artist">Select a song to play</div>
+          </div>
+        </div>
+
+        <div class="player-controls">
+          <div class="control-buttons">
+            <button class="btn-icon" id="btn-shuffle" onclick="player.toggleShuffle()" title="Shuffle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 3 21 3 21 8"></polyline>
+                <line x1="4" y1="20" x2="21" y2="3"></line>
+                <polyline points="21 16 21 21 16 21"></polyline>
+                <line x1="15" y1="15" x2="21" y2="21"></line>
+                <line x1="4" y1="4" x2="9" y2="9"></line>
+              </svg>
+            </button>
+
+            <button class="btn-icon" onclick="player.prev()" title="Previous Track">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="19 20 9 12 19 4 19 20"></polygon>
+                <line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"></line>
+              </svg>
+            </button>
+
+            <button class="btn-play-pause" id="btn-play-pause" onclick="player.togglePlay()" title="Play/Pause">
+              <svg id="icon-play" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              <svg id="icon-pause" viewBox="0 0 24 24" fill="currentColor" class="hidden">
+                <rect x="6" y="4" width="4" height="16"></rect>
+                <rect x="14" y="4" width="4" height="16"></rect>
+              </svg>
+            </button>
+
+            <button class="btn-icon" onclick="player.next()" title="Next Track">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                <line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"></line>
+              </svg>
+            </button>
+
+            <button class="btn-icon" id="btn-repeat" onclick="player.toggleRepeat()" title="Repeat">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="17 1 21 5 17 9"></polyline>
+                <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                <polyline points="7 23 3 19 7 15"></polyline>
+                <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+              </svg>
+              <span id="repeat-one-badge" class="repeat-one-indicator hidden">1</span>
+            </button>
+          </div>
+
+          <div class="time-display">
+            <span id="time-current">0:00</span>
+            <span class="time-separator">/</span>
+            <span id="time-total">0:00</span>
+          </div>
+        </div>
+
+        <div class="player-extra">
+          <div class="volume-control">
+            <button class="btn-icon" id="btn-mute" onclick="player.toggleMute()">
+              <svg id="icon-vol-high" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+              </svg>
+              <svg id="icon-vol-mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden">
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <line x1="23" y1="9" x2="17" y2="15"></line>
+                <line x1="17" y1="9" x2="23" y2="15"></line>
+              </svg>
+            </button>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.9" oninput="player.setVolume(this.value)" />
+          </div>
+
+          <button class="btn-icon" onclick="player.toggleQueueDrawer()" title="Queue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </button>
+
+          <button class="btn-icon btn-expand" onclick="player.openFullscreenPlayer()" title="Full Screen Player">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </footer>
+
+    <div id="fullscreen-player" class="fullscreen-player">
+      <div class="fs-header">
+        <button class="btn-fs-close" onclick="player.closeFullscreenPlayer()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+        <div class="fs-header-title">
+          <span>NOW PLAYING</span>
+          <span id="fs-playlist-name" class="fs-playlist-name">Playlist</span>
+        </div>
+        <button class="btn-icon" onclick="player.toggleQueueDrawer()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="fs-art-container">
+        <img id="fs-art" src="/static/default-art.png" alt="Cover" class="fs-art" onerror="this.src='/static/default-art.png'" />
+      </div>
+
+      <div class="fs-meta">
+        <h2 id="fs-title">No track selected</h2>
+        <p id="fs-artist">Select a song to play</p>
+      </div>
+
+      <div class="fs-scrub-section">
+        <div class="fs-scrub-bar" id="fs-scrub-bar" onclick="player.handleScrubClick(event)">
+          <div class="fs-scrub-progress" id="fs-scrub-progress"></div>
+        </div>
+        <div class="fs-times">
+          <span id="fs-time-current">0:00</span>
+          <span id="fs-time-total">0:00</span>
+        </div>
+      </div>
+
+      <div class="fs-controls">
+        <button class="btn-icon fs-btn" id="fs-btn-shuffle" onclick="player.toggleShuffle()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 3 21 3 21 8"></polyline>
+            <line x1="4" y1="20" x2="21" y2="3"></line>
+            <polyline points="21 16 21 21 16 21"></polyline>
+            <line x1="15" y1="15" x2="21" y2="21"></line>
+            <line x1="4" y1="4" x2="9" y2="9"></line>
+          </svg>
+        </button>
+
+        <button class="btn-icon fs-btn-step" onclick="player.prev()">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="19 20 9 12 19 4 19 20"></polygon>
+            <line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5"></line>
+          </svg>
+        </button>
+
+        <button class="btn-fs-play" onclick="player.togglePlay()">
+          <svg id="fs-icon-play" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="6 4 20 12 6 20 6 4"></polygon>
+          </svg>
+          <svg id="fs-icon-pause" viewBox="0 0 24 24" fill="currentColor" class="hidden">
+            <rect x="6" y="4" width="4" height="16"></rect>
+            <rect x="14" y="4" width="4" height="16"></rect>
+          </svg>
+        </button>
+
+        <button class="btn-icon fs-btn-step" onclick="player.next()">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 4 15 12 5 20 5 4"></polygon>
+            <line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"></line>
+          </svg>
+        </button>
+
+        <button class="btn-icon fs-btn" id="fs-btn-repeat" onclick="player.toggleRepeat()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="17 1 21 5 17 9"></polyline>
+            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+            <polyline points="7 23 3 19 7 15"></polyline>
+            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+          </svg>
+          <span id="fs-repeat-one-badge" class="repeat-one-indicator hidden">1</span>
+        </button>
+      </div>
+
+      <div class="fs-footer-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        <span>Playing locally • Audio continues with screen locked</span>
+      </div>
+    </div>
+
+    <div id="queue-drawer" class="queue-drawer">
+      <div class="queue-header">
+        <h4>Playback Queue</h4>
+        <button class="btn-icon" onclick="player.toggleQueueDrawer()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div id="queue-tracks-list" class="queue-list">
+      </div>
+    </div>
+
+    <div id="download-modal" class="modal-overlay hidden" onclick="if(event.target===this) app.hideDownloadModal()">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Background Downloads</h3>
+          <button class="btn-icon" onclick="app.hideDownloadModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div id="active-download-box" class="active-download-box">
+            <div class="active-dl-title" id="active-dl-title">Idle</div>
+            <div class="active-dl-status" id="active-dl-status">No active downloads</div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="active-dl-bar" style="width: 0%"></div>
+            </div>
+            <div class="active-dl-meta">
+              <span id="active-dl-speed"></span>
+              <span id="active-dl-queue"></span>
+            </div>
+          </div>
+          <p class="modal-tip">Songs download as high-fidelity MP3s directly to your device storage. Once downloaded, you can play them anytime, completely offline.</p>
+        </div>
+      </div>
+    </div>
+
+    <audio id="audio-engine" preload="auto" playsinline></audio>
+
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+
+  <script src="/static/js/player.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
